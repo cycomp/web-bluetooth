@@ -1,0 +1,128 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+
+  <title>Web Bluetooth Testpage</title>
+  <meta name="description" content="Web Bluetooth Testpage">
+  <meta name="author" content="Andrew Weighill">
+
+
+</head>
+
+<body>
+  <button type="button" id="scan_button">Scan for Devices</button>
+  <h1 id ="info">HR Status: -</h1>
+  <h1 id="hr_value">HR Value: -</h1>
+  <h1 id="gps_info">GPS Status: -</h1>
+  <h1 id="location">Location: - </h1>
+  
+  <script>
+	var gpsInfo = document.getElementById("gps_info");
+	gpsInfo.innerHTML = "hello";
+	
+	var dataArray = [[],[]];
+	
+	if (navigator.geolocation) {
+		var gpsInfo = document.getElementById("gps_info");
+		gpsInfo.innerHTML = "beginning location watch";
+		startLocationWatch();
+	} else {
+		//geolocation not supported
+		var gpsInfo = document.getElementById("gps_info");
+		gpsInfo.innerHTML = "geolocation not supported";
+	}
+	
+	
+
+	var button = document.getElementById("scan_button")
+	button.addEventListener('click', function(event) {
+		var info = document.getElementById("info");
+		info.innerHTML = "scanning...";
+		navigator.bluetooth.requestDevice({ filters: [{ services: ['heart_rate'] }] })
+		.then(device => device.gatt.connect())
+		.then(server => server.getPrimaryService('heart_rate'))
+		.then(service => service.getCharacteristic('heart_rate_measurement'))
+		.then(characteristic => characteristic.startNotifications())
+		.then(characteristic => {
+			characteristic.addEventListener('characteristicvaluechanged',
+											handleCharacteristicValueChanged);
+
+		})
+		.catch(error => {console.log(error);});
+	});
+	
+	function startLocationWatch() {
+		//start location watch
+		var options = {
+						enableHighAccuracy : true,
+						timeout : Infinity,
+						maximumAge : 0
+					};
+		navigator.geolocation.watchPosition(showPosition, showError, options);
+		gpsInfo.innerHTML = "location watch started";
+	}
+	
+	function showPosition(position) {
+		var gpsInfo = document.getElementById("gps_info");
+		gpsInfo.innerHTML = "display location";
+		var locationText = document.getElementById("location");
+		locationText.innerHTML = "Latitude: "+position.coords.latitude+" Longitude: "+position.coords.longitude;
+	}
+	
+	function showError(error) {
+		switch(error.code) {
+			case error.PERMISSION_DENIED:
+				alert("User denied the request for Geolocation.");
+				break;
+			case error.POSITION_UNAVAILABLE:
+				alert("Location information is unavailable.");
+				break;
+			case error.TIMEOUT:
+				alert("The request to get user location timed out.");
+				break;
+			case error.UNKNOWN_ERROR:
+				alert("An unknown error occurred.");
+				break;
+		}
+	}
+	
+	
+	function handleCharacteristicValueChanged(event) {
+		var info = document.getElementById("info");
+		info.innerHTML = "check flag.";
+		var value = event.target.value;
+		let flags = value.getUint8(0);
+		
+		if (flags & 0x1) {
+			var rate16bits = true;
+			info.innerHTML = "16bits.";
+		} else {
+			var rate16bits = false;
+			info.innerHTML = "8bits.";
+		}
+		
+		if (rate16bits) {
+			var hrNumber = value.getUint16(1,true);
+		} else {
+			var hrNumber = value.getUint8(1);
+		}
+
+		var hrValue = document.getElementById("hr_value");
+		hrValue.innerHTML = hrNumber;
+		
+		var timestamp = Math.floor(Date.now());
+		
+		var index = dataArray.length;
+		dataArray[index][0] = timestamp;
+		dataArray[index][1] = hrValue;
+
+	}
+  
+  
+  
+  
+  </script>
+</body>
+</html>

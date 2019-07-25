@@ -17,12 +17,14 @@
   <h1 id="hr_value">HR Value: -</h1>
   <h1 id="gps_info">GPS Status: -</h1>
   <h1 id="location">Location: - </h1>
+  <h1 id="speed">Speed: - </h1>
   
   <script>
 	var gpsInfo = document.getElementById("gps_info");
 	gpsInfo.innerHTML = "hello";
 	
-	var dataArray = [[],[]];
+	var hrArray = [[],[]];
+	var gpsArray = [[],[]];
 	
 	if (navigator.geolocation) {
 		var gpsInfo = document.getElementById("gps_info");
@@ -69,6 +71,17 @@
 		gpsInfo.innerHTML = "display location";
 		var locationText = document.getElementById("location");
 		locationText.innerHTML = "Latitude: "+position.coords.latitude+" Longitude: "+position.coords.longitude;
+		
+		var speedText = document.getElementById("speed");
+		speedText.innerHTML = "Speed: "+(position.coords.speed*3.6)+"kph"
+
+		
+		var index = gpsArray.length;
+		gpsArray[index][0] = position.timestamp;
+		gpsArray[index][1] = position.coords.latitude;
+		gpsArray[index][2] = position.coords.longitude;
+		
+
 	}
 	
 	function showError(error) {
@@ -114,9 +127,9 @@
 		
 		var timestamp = Math.floor(Date.now());
 		
-		var index = dataArray.length;
-		dataArray[index][0] = timestamp;
-		dataArray[index][1] = hrValue;
+		var index = hrArray.length;
+		hrArray[index][0] = timestamp;
+		hrArray[index][1] = hrValue;
 
 	}
   

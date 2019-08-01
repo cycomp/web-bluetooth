@@ -18,13 +18,19 @@
   <h1 id="gps_info">GPS Status: -</h1>
   <h1 id="location">Location: - </h1>
   <h1 id="speed">Speed: - </h1>
+  <button type="button" id="save">Save Data</button>
+  <button type="button" id="record">Start Recording</button>
+
   
-  <script>
-	var gpsInfo = document.getElementById("gps_info");
-	gpsInfo.innerHTML = "hello";
+  <script>  
+	var currentLat = 0;
+	var currentLong = 0;
+	var currentHR = 0;
+	var dataArray = [];
 	
-	var hrArray = [[],[]];
-	var gpsArray = [[],[]];
+	var hrPresent = false;
+	var gpsPresent = false;
+
 	
 	if (navigator.geolocation) {
 		var gpsInfo = document.getElementById("gps_info");
@@ -37,8 +43,87 @@
 	}
 	
 	
+	var recordButton = document.getElementById("record");
+	recordButton.addEventListener('click', function(event) {
+		if(gpsPresent || hrPresent) {
+			window.setInterval(recordData,1000);
+		} else {
+			alert("GPS or HR data needed to record")
+		}
+	});
+	
+	function recordData() {
+		var index = dataArray.length;
+		dataArray[index] = {};
+		dataArray[index]["timestamp"] = Math.floor(Date.now());
+		if(gpsPresent) {
+			dataArray[index]["lat"] = currentLat;
+			dataArray[index]["long"] = currentLong;
+		}
+		if(hrPresent) {
+			console.log(currentHR);
+			dataArray[index]["hr"] = currentHR;
+		}
+	}
 
-	var button = document.getElementById("scan_button")
+	var saveButton = document.getElementById("save");
+	saveButton.addEventListener('click', function(event) {
+		//save data here
+		var gpxString = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><gpx version=\"1.1\" creator=\"https://cycomp.github.io/web-bluetooth/\" xmlns=\"http://www.topografix.com/GPX/1/1\" xmlns:gpxdata=\"http://www.cluetrust.com/XML/GPXDATA/1/0\"><trk><name>Test Track</name><trkseg>";
+		var numPoints = dataArray.length;
+		var n;
+		var trkpt
+		var extensions;
+		for(n=0; n<numPoints; n++) {
+			var utcTimestamp = (new Date(dataArray[n]["timestamp"])).toISOString();
+			console.log(utcTimestamp);
+			trkpt = "<trkpt lat=\""+dataArray[n]["lat"]+"\" lon=\""+dataArray[n]["long"]+"\"><time>"+utcTimestamp+"</time>";
+			if(dataArray[n]["hr"]) {
+				extensions = "<extensions><gpxdata:hr>"+dataArray[n]["hr"]+"</gpxdata:hr></extensions>";
+			} else {
+				extensions = "";
+			}
+			trkpt = trkpt + extensions + "</trkpt>";
+			gpxString = gpxString + trkpt;
+		}
+		gpxString = gpxString+"</trkseg></trk></gpx>";
+		
+		if ('Blob' in window) {
+			var fileName = prompt('Please enter file name to save', 'myride.gpx');
+			if (fileName) {
+				var textFileAsBlob = new Blob([gpxString], { type: 'text/plain' });
+
+			  if ('msSaveOrOpenBlob' in navigator) {
+				navigator.msSaveOrOpenBlob(textFileAsBlob, fileName);
+			  } else {
+				var downloadLink = document.createElement('a');
+				downloadLink.download = fileName;
+				downloadLink.innerHTML = 'Download File';
+				if ('webkitURL' in window) {
+				  // Chrome allows the link to be clicked without actually adding it to the DOM.
+				  downloadLink.href = window.webkitURL.createObjectURL(textFileAsBlob);
+				} else {
+				  // Firefox requires the link to be added to the DOM before it can be clicked.
+				  downloadLink.href = window.URL.createObjectURL(textFileAsBlob);
+				  downloadLink.onclick = destroyClickedElement;
+				  downloadLink.style.display = 'none';
+				  document.body.appendChild(downloadLink);
+				}
+
+				downloadLink.click();
+			  }
+			}
+		  } else {
+			alert('Your browser does not support HTML5 file saving.');
+		  }
+		
+	});
+	
+	function destroyClickedElement(event) {
+		document.body.removeChild(event.target);
+	}
+
+	var button = document.getElementById("scan_button");
 	button.addEventListener('click', function(event) {
 		var info = document.getElementById("info");
 		info.innerHTML = "scanning...";
@@ -76,11 +161,10 @@
 		speedText.innerHTML = "Speed: "+(position.coords.speed*3.6)+"kph"
 
 		
-		var index = gpsArray.length;
-		gpsArray[index][0] = position.timestamp;
-		gpsArray[index][1] = position.coords.latitude;
-		gpsArray[index][2] = position.coords.longitude;
+		currentLat = position.coords.latitude;
+		currentLong = position.coords.longitude;
 		
+		gpsPresent = true;
 
 	}
 	
@@ -123,13 +207,11 @@
 		}
 
 		var hrValue = document.getElementById("hr_value");
-		hrValue.innerHTML = hrNumber;
+		hrValue.innerHTML = hrNumber;		
+
+		currentHR = hrNumber;
 		
-		var timestamp = Math.floor(Date.now());
-		
-		var index = hrArray.length;
-		hrArray[index][0] = timestamp;
-		hrArray[index][1] = hrValue;
+		hrPresent = true;
 
 	}
   
